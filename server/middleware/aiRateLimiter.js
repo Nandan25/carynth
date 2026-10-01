@@ -10,13 +10,14 @@ const DAILY_LIMIT = Number(process.env.FREE_TIER_DAILY_AI_LIMIT || 10);
 export async function aiRateLimiter(req, res, next) {
   try {
     const user = await User.findById(req.user._id).select(
-      "+geminiApiKeyEncrypted useOwnKey aiUsage"
+      "+geminiApiKeyEncrypted useOwnKey aiUsage adminUser"
     );
 
     const hasOwnKey = user.useOwnKey && !!user.geminiApiKeyEncrypted;
+    const adminUser = user.adminUser || false;
     req.usesOwnKey = hasOwnKey;
 
-    if (hasOwnKey) {
+    if (hasOwnKey || adminUser) {
       return next();
     }
 

@@ -22,6 +22,7 @@ const userSchema = new mongoose.Schema(
     // Bring-your-own-Gemini-key
     geminiApiKeyEncrypted: { type: String, select: false },
     useOwnKey: { type: Boolean, default: false },
+    adminUser: { type: Boolean, default: false },
 
     // Usage tracking for the shared/default key
     aiUsage: {

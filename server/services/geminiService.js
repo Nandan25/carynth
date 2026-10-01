@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { decrypt } from "./encryption.js";
 
-const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 
 /** Picks the right Gemini API key: the user's own (decrypted) or the app's shared key. */
 function resolveApiKey(user) {
