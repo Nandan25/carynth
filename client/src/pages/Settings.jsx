@@ -24,7 +24,9 @@ export default function Settings() {
     try {
       await setGeminiKey({ apiKey: keyInput.trim(), useOwnKey: true });
       setKeyInput("");
-      setMessage("Key saved. You're now using your own Gemini key with no daily limit.");
+      setMessage(
+        "Key saved. You're now using your own Gemini key with no daily limit.",
+      );
       await load();
     } catch (err) {
       setMessage(err.response?.data?.message || "Failed to save key");
@@ -46,7 +48,12 @@ export default function Settings() {
   };
 
   const handleRemoveKey = async () => {
-    if (!confirm("Remove your saved Gemini key? You'll switch back to the shared key with a daily limit.")) return;
+    if (
+      !confirm(
+        "Remove your saved Gemini key? You'll switch back to the shared key with a daily limit.",
+      )
+    )
+      return;
     setSaving(true);
     try {
       await removeGeminiKey();
@@ -79,14 +86,14 @@ export default function Settings() {
           >
             Google AI Studio
           </a>{" "}
-          for unlimited use — it's billed to your own Google account, and it's stored encrypted and
-          never shown again.
+          for unlimited use — it's billed to your own Google account, and it's
+          stored encrypted and never shown again.
         </p>
 
         <div className="mt-4 flex items-center justify-between rounded-lg border border-border p-3 dark:border-border-dark">
           <div>
             <p className="text-sm font-medium">
-              {usage.hasOwnKey ? "Your key is saved" : "No personal key saved"}
+              {usage.useOwnKey ? "Your key is saved" : "No personal key saved"}
             </p>
             <p className="text-xs text-muted dark:text-muted-dark">
               {usage.useOwnKey
@@ -135,7 +142,11 @@ export default function Settings() {
           </button>
         )}
 
-        {message && <p className="mt-3 text-sm text-muted dark:text-muted-dark">{message}</p>}
+        {message && (
+          <p className="mt-3 text-sm text-muted dark:text-muted-dark">
+            {message}
+          </p>
+        )}
       </div>
     </div>
   );
