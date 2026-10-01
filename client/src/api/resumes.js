@@ -7,6 +7,15 @@ export const updateResume = (id, payload) => api.put(`/resumes/${id}`, payload).
 export const deleteResume = (id) => api.delete(`/resumes/${id}`).then((r) => r.data);
 export const tailorResume = (id, payload) => api.post(`/resumes/${id}/tailor`, payload).then((r) => r.data);
 
+export async function importResumePdf(file) {
+  const formData = new FormData();
+  formData.append("resume", file);
+  const { data } = await api.post("/resumes/import", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data; // { resume, usedOcr, usesOwnKey }
+}
+
 export async function exportResumePdf(id, filename = "resume.pdf") {
   const res = await api.get(`/resumes/${id}/export`, { responseType: "blob" });
   const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));

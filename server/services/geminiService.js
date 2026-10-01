@@ -128,7 +128,47 @@ Original bullet: "${bulletText}"`;
   return parsed.rewritten || bulletText;
 }
 
-/** Generates a professional summary from the resume's experience/skills data. */
+/**
+ * Parses raw text extracted from an uploaded PDF (via pdf-parse or the OCR
+ * fallback) into the app's structured resume shape. The text may be
+ * imperfectly ordered since it came from automated extraction — the prompt
+ * asks the model to reconstruct logical structure without inventing facts
+ * that aren't actually present in the source text.
+ */
+export async function parseResumeFromText(user, rawText) {
+  const model = getModel(user, { json: true });
+  const prompt = `You are extracting structured resume data from raw text pulled from a PDF
+(it may be imperfectly ordered, since it came from automated text or OCR extraction). Return
+ONLY a JSON object matching exactly this shape. Use an empty string or empty array for anything
+not present in the text — never invent or guess information that isn't actually there:
+
+{
+  "personalInfo": {
+    "fullName": "", "title": "", "email": "", "phone": "", "location": "",
+    "website": "", "linkedin": "", "github": "", "summary": ""
+  },
+  "experience": [{ "company": "", "role": "", "location": "", "startDate": "", "endDate": "", "current": false, "bullets": [""] }],
+  "education": [{ "school": "", "degree": "", "field": "", "location": "", "startDate": "", "endDate": "", "details": "" }],
+  "skills": [""],
+  "projects": [{ "name": "", "link": "", "description": "", "bullets": [""], "tech": [""] }],
+  "certifications": [{ "name": "", "issuer": "", "date": "" }]
+}
+
+RAW TEXT:
+${rawText}`;
+
+  const result = await model.generateContent(prompt);
+  const parsed = extractJson(result.response.text());
+
+  return {
+    personalInfo: parsed.personalInfo || {},
+    experience: parsed.experience || [],
+    education: parsed.education || [],
+    skills: parsed.skills || [],
+    projects: parsed.projects || [],
+    certifications: parsed.certifications || [],
+  };
+}
 export async function generateSummary(user, resume, jobDescription = "") {
   const model = getModel(user, { json: true });
   const prompt = `Write a concise, first-person-implied professional resume summary (2-3 sentences,

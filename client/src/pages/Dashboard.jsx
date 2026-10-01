@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listResumes, createResume, deleteResume } from "../api/resumes.js";
+import { listResumes, createResume, deleteResume, importResumePdf } from "../api/resumes.js";
 
 const TEMPLATE_LABEL = {
   classic: "Classic",
@@ -12,7 +12,10 @@ const TEMPLATE_LABEL = {
 export default function Dashboard() {
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   const load = async () => {
     setLoading(true);
@@ -30,6 +33,30 @@ export default function Dashboard() {
     navigate(`/editor/${resume._id}`);
   };
 
+  const handleImportClick = () => {
+    setImportError("");
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportError("");
+    try {
+      const data = await importResumePdf(file);
+      navigate(`/editor/${data.resume._id}`);
+    } catch (err) {
+      setImportError(
+        err.response?.data?.message || "Couldn't import that PDF. Please try a different file."
+      );
+    } finally {
+      setImporting(false);
+      e.target.value = "";
+    }
+  };
+
   const handleDelete = async (id) => {
     if (!confirm("Delete this resume? This can't be undone.")) return;
     await deleteResume(id);
@@ -45,13 +72,36 @@ export default function Dashboard() {
             {resumes.length} resume{resumes.length === 1 ? "" : "s"}
           </p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-light"
-        >
-          + New resume
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            onChange={handleFileChange}
+            className="hidden"
+            data-testid="pdf-import-input"
+          />
+          <button
+            onClick={handleImportClick}
+            disabled={importing}
+            className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-black/5 disabled:opacity-60 dark:border-border-dark dark:hover:bg-white/5"
+          >
+            {importing ? "Importing…" : "Import from PDF"}
+          </button>
+          <button
+            onClick={handleCreate}
+            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-light"
+          >
+            + New resume
+          </button>
+        </div>
       </div>
+
+      {importError && (
+        <div className="mb-6 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+          {importError}
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-muted dark:text-muted-dark">Loading…</p>

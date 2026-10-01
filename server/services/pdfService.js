@@ -5,7 +5,7 @@ let browserPromise = null;
 
 // Reuse a single browser instance across requests instead of launching a
 // fresh one every export (launching Chromium is the expensive part).
-function getBrowser() {
+export function getBrowser() {
   if (!browserPromise) {
     browserPromise = puppeteer.launch({
       headless: true,

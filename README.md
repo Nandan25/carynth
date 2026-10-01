@@ -65,6 +65,23 @@ gives you a long-running container. On first `npm install`, Puppeteer
 downloads a bundled Chromium; on some Linux hosts you may need extra system
 libraries (Render's Node runtime has what's needed out of the box).
 
+## 4a. PDF resume import (with OCR fallback) — resource notes
+Importing an existing resume works in two tiers: `pdf-parse` extracts text
+directly for the common case (text-based PDFs exported from Word, Google
+Docs, LaTeX, etc). If that comes back empty (a scanned/image-based PDF), the
+server falls back to OCR: it reuses the same Puppeteer/Chromium instance to
+rasterize up to 3 pages via `pdf.js`, then runs `tesseract.js` over each
+page image. No new native system dependency is introduced — this
+deliberately reuses the Chromium instance already proven to work on your
+Render deploy, rather than requiring Poppler/GraphicsMagick (which the
+standard Node buildpack doesn't include).
+
+The honest tradeoff is **RAM, not API cost**: running Chromium and a
+Tesseract OCR engine in the same request is meaningfully heavier than plain
+PDF export alone. If OCR imports see real usage, plan for at least a
+Starter-tier Render instance rather than the free tier — 512MB tends to be
+tight once both are running concurrently.
+
 ## 5. Deploying to Render
 - **Backend**: new Web Service → root directory `server` → build command
   `npm install` → start command `npm start` → add all env vars from
@@ -77,6 +94,9 @@ libraries (Render's Node runtime has what's needed out of the box).
 - Email/password auth + Google OAuth, both issuing the same JWT
 - Resume CRUD, each with structured sections (personal info, experience,
   education, skills, projects, certifications)
+- **Import an existing resume from a PDF** — extracts text (with an OCR
+  fallback for scanned PDFs) and uses Gemini to structure it into a new
+  resume, ready to review and edit
 - 4 templates (Classic, Modern, Minimal, Technical) sharing one data schema
 - "Tailor for a job" — fork a resume (`baseResumeId`) instead of overwriting,
   so you can keep multiple job-specific versions

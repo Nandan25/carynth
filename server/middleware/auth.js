@@ -9,7 +9,11 @@ export async function protect(req, res, next) {
     }
     const token = header.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    // geminiApiKeyEncrypted has `select: false` on the schema (so it never
+    // leaks in normal API responses) — but every AI service call needs it
+    // off req.user to actually use a BYO key instead of silently falling
+    // back to the shared one. Explicitly select it here.
+    const user = await User.findById(decoded.id).select("+geminiApiKeyEncrypted");
     if (!user) {
       return res.status(401).json({ message: "Not authorized, user not found" });
     }
