@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useResumeStore } from "../../store/resumeStore.js";
 import { improveBullet } from "../../api/ai.js";
+import VoiceInput from "./VoiceInput.jsx";
 
 const emptyExperience = {
   company: "",
@@ -13,8 +14,15 @@ const emptyExperience = {
 };
 
 export default function ExperienceForm() {
-  const { resume, addItem, updateItem, removeItem, addBullet, updateBullet, removeBullet } =
-    useResumeStore();
+  const {
+    resume,
+    addItem,
+    updateItem,
+    removeItem,
+    addBullet,
+    updateBullet,
+    removeBullet,
+  } = useResumeStore();
   const [improvingKey, setImprovingKey] = useState(null);
 
   const handleImprove = async (itemIndex, bulletIndex) => {
@@ -23,10 +31,15 @@ export default function ExperienceForm() {
     const key = `${itemIndex}-${bulletIndex}`;
     setImprovingKey(key);
     try {
-      const { rewritten } = await improveBullet(text, resume.jobDescription || "");
+      const { rewritten } = await improveBullet(
+        text,
+        resume.jobDescription || "",
+      );
       updateBullet("experience", itemIndex, bulletIndex, rewritten);
     } catch (err) {
-      alert(err.response?.data?.message || "Couldn't improve this bullet right now");
+      alert(
+        err.response?.data?.message || "Couldn't improve this bullet right now",
+      );
     } finally {
       setImprovingKey(null);
     }
@@ -35,7 +48,10 @@ export default function ExperienceForm() {
   return (
     <div className="space-y-5">
       {resume.experience.map((exp, i) => (
-        <div key={i} className="rounded-lg border border-border p-4 dark:border-border-dark">
+        <div
+          key={i}
+          className="rounded-lg border border-border p-4 dark:border-border-dark"
+        >
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-medium text-muted dark:text-muted-dark">
               Position {i + 1}
@@ -52,32 +68,42 @@ export default function ExperienceForm() {
             <input
               placeholder="Role"
               value={exp.role}
-              onChange={(e) => updateItem("experience", i, { role: e.target.value })}
+              onChange={(e) =>
+                updateItem("experience", i, { role: e.target.value })
+              }
               className="rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
             />
             <input
               placeholder="Company"
               value={exp.company}
-              onChange={(e) => updateItem("experience", i, { company: e.target.value })}
+              onChange={(e) =>
+                updateItem("experience", i, { company: e.target.value })
+              }
               className="rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
             />
             <input
               placeholder="Location"
               value={exp.location}
-              onChange={(e) => updateItem("experience", i, { location: e.target.value })}
+              onChange={(e) =>
+                updateItem("experience", i, { location: e.target.value })
+              }
               className="col-span-2 rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
             />
             <input
               placeholder="Start (e.g. Jan 2022)"
               value={exp.startDate}
-              onChange={(e) => updateItem("experience", i, { startDate: e.target.value })}
+              onChange={(e) =>
+                updateItem("experience", i, { startDate: e.target.value })
+              }
               className="rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
             />
             <input
               placeholder="End (or blank if current)"
               value={exp.endDate}
               disabled={exp.current}
-              onChange={(e) => updateItem("experience", i, { endDate: e.target.value })}
+              onChange={(e) =>
+                updateItem("experience", i, { endDate: e.target.value })
+              }
               className="rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent disabled:opacity-50 dark:border-border-dark dark:bg-surface-dark"
             />
           </div>
@@ -86,7 +112,9 @@ export default function ExperienceForm() {
             <input
               type="checkbox"
               checked={exp.current}
-              onChange={(e) => updateItem("experience", i, { current: e.target.checked })}
+              onChange={(e) =>
+                updateItem("experience", i, { current: e.target.checked })
+              }
               className="h-3.5 w-3.5 accent-[#4F46E5]"
             />
             I currently work here
@@ -99,7 +127,9 @@ export default function ExperienceForm() {
                 <div key={bi} className="flex gap-2">
                   <textarea
                     value={b}
-                    onChange={(e) => updateBullet("experience", i, bi, e.target.value)}
+                    onChange={(e) =>
+                      updateBullet("experience", i, bi, e.target.value)
+                    }
                     rows={2}
                     className="flex-1 resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
                   />
@@ -122,6 +152,10 @@ export default function ExperienceForm() {
                 </div>
               );
             })}
+            <VoiceInput
+              label={`Dictate a bullet for ${exp.role || `Position ${i + 1}`}`}
+              onInsert={(text) => addBullet("experience", i, text)}
+            />
             <button
               onClick={() => addBullet("experience", i, "")}
               className="text-xs font-medium text-accent hover:underline"

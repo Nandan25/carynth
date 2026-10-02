@@ -1,6 +1,13 @@
 import { useResumeStore } from "../../store/resumeStore.js";
+import VoiceInput from "./VoiceInput.jsx";
 
-const emptyProject = { name: "", link: "", description: "", bullets: [], tech: [] };
+const emptyProject = {
+  name: "",
+  link: "",
+  description: "",
+  bullets: [],
+  tech: [],
+};
 
 export default function ProjectsForm() {
   const { resume, addItem, updateItem, removeItem } = useResumeStore();
@@ -21,7 +28,10 @@ export default function ProjectsForm() {
   return (
     <div className="space-y-5">
       {resume.projects.map((pr, i) => (
-        <div key={i} className="rounded-lg border border-border p-4 dark:border-border-dark">
+        <div
+          key={i}
+          className="rounded-lg border border-border p-4 dark:border-border-dark"
+        >
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-medium text-muted dark:text-muted-dark">
               Project {i + 1}
@@ -37,21 +47,38 @@ export default function ProjectsForm() {
             <input
               placeholder="Project name"
               value={pr.name}
-              onChange={(e) => updateItem("projects", i, { name: e.target.value })}
+              onChange={(e) =>
+                updateItem("projects", i, { name: e.target.value })
+              }
               className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
             />
             <input
               placeholder="Link (optional)"
               value={pr.link}
-              onChange={(e) => updateItem("projects", i, { link: e.target.value })}
+              onChange={(e) =>
+                updateItem("projects", i, { link: e.target.value })
+              }
               className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
             />
             <textarea
               placeholder="One-line description"
               value={pr.description}
-              onChange={(e) => updateItem("projects", i, { description: e.target.value })}
+              onChange={(e) =>
+                updateItem("projects", i, { description: e.target.value })
+              }
               rows={2}
               className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
+            />
+            <VoiceInput
+              label={`Dictate description for ${pr.name || `Project ${i + 1}`}`}
+              onInsert={(text) =>
+                updateItem("projects", i, {
+                  description: [pr.description, text]
+                    .filter(Boolean)
+                    .join(" ")
+                    .trim(),
+                })
+              }
             />
             <textarea
               placeholder="Bullet points (one per line)"
@@ -59,6 +86,14 @@ export default function ProjectsForm() {
               onChange={(e) => updateBulletsText(i, e.target.value)}
               rows={3}
               className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent dark:border-border-dark dark:bg-surface-dark"
+            />
+            <VoiceInput
+              label={`Dictate bullet for ${pr.name || `Project ${i + 1}`}`}
+              onInsert={(text) =>
+                updateItem("projects", i, {
+                  bullets: [...(pr.bullets || []), text],
+                })
+              }
             />
             <input
               placeholder="Tech used, comma-separated (e.g. React, Node, MongoDB)"
