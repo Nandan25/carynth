@@ -6,6 +6,7 @@ bullet rewriting, and summary generation. Users can use the app's shared
 Gemini key (rate-limited) or bring their own (unlimited).
 
 ## Stack
+- **Language**: TypeScript across client, server and e2e tests
 - **Client**: React 18 + Vite, Tailwind CSS, Zustand, React Router, Axios
 - **Server**: Node + Express, MongoDB + Mongoose, JWT + Google OAuth, Puppeteer, Google Gemini API
 
@@ -84,7 +85,7 @@ tight once both are running concurrently.
 
 ## 5. Deploying to Render
 - **Backend**: new Web Service → root directory `server` → build command
-  `npm install` → start command `npm start` → add all env vars from
+  `npm install && npm run build` (compiles TypeScript to `dist/`) → start command `npm start` → add all env vars from
   `.env.example` in the Render dashboard.
 - **Frontend**: new Static Site → root directory `client` → build command
   `npm install && npm run build` → publish directory `dist` → set
@@ -105,3 +106,13 @@ tight once both are running concurrently.
 - Settings page: bring your own Gemini key (stored encrypted, never sent
   back to the client) or use the shared key with a daily rate limit
 - Dark/light theme toggle (persisted, respects system preference)
+
+## TypeScript notes
+- `npm run dev` in `server/` runs the TS sources directly via `tsx` (watch mode);
+  `npm run build` compiles to `server/dist`, and `npm start` runs the compiled output.
+- `npm run typecheck` in `server/` and `client/` runs `tsc --noEmit`. Both
+  projects currently use `strict: false` (a deliberate first pass so the migration
+  couldn't change behavior); tightening `strict` is a good incremental follow-up.
+- Server relative imports keep a `.js` extension (e.g. `from "./app.js"`) — that is
+  the correct convention for TypeScript + Node ESM and resolves to the `.ts` source.
+- Client relative imports are extensionless (Vite `bundler` resolution).

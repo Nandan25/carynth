@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    /* DOM is included only for Puppeteer's page.evaluate() callbacks in
+       ocrService.ts, which execute inside a real browser page (window,
+       document, atob) — not because any server code runs in a browser. */
+    "lib": ["ES2022", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": ".",
+
+    /* Reasonable-default pass: get everything compiling with behavior
+       unchanged first. Tighten these incrementally in a later, separate
+       pass rather than all at once alongside a full-codebase rewrite. */
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "declaration": false,
+    "sourceMap": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
