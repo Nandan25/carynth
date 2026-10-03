@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Vite bundler mode: relative imports are extensionless, resolution
+       matches how Vite itself resolves modules during dev/build. */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Reasonable-default pass: get everything compiling with behavior
+       unchanged first. Tighten these incrementally in a later, separate
+       pass rather than all at once alongside a full-codebase rewrite. */
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src", "vite.config.ts", "tailwind.config.ts"],
+  /* Test files mock browser globals (window.MediaRecorder, navigator, ...)
+     in ways TS rightly considers untyped. Vitest runs them fine without
+     type-checking; typing them is a follow-up. */
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test"]
+}
