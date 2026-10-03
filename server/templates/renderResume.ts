@@ -90,7 +90,7 @@ function renderClassic(resume) {
     ${resume.education?.length ? `<div class="section"><div class="section-title">Education</div>
       ${resume.education.map(ed => `
         <div class="item">
-          <div class="row-between"><span class="item-title">${esc(ed.degree)}${ed.field ? `, ${esc(ed.field)}` : ""}</span><span class="muted">${dateRange(ed.startDate, ed.endDate)}</span></div>
+          <div class="row-between"><span class="item-title">${esc(ed.degree)}${ed.field ? `, ${esc(ed.field)}` : ""}</span><span class="muted">${dateRange(ed.startDate, ed.endDate, ed.current)}</span></div>
           <div class="muted">${esc(ed.school)}${ed.location ? `, ${esc(ed.location)}` : ""}</div>
           ${ed.details ? `<div>${esc(ed.details)}</div>` : ""}
         </div>`).join("")}
@@ -151,7 +151,7 @@ function renderModern(resume) {
       ${resume.education?.length ? `<div class="section"><div class="section-title">Education</div>
         ${resume.education.map(ed => `
           <div class="item">
-            <div class="row-between"><span class="item-title">${esc(ed.degree)}${ed.field ? `, ${esc(ed.field)}` : ""}</span><span class="muted">${dateRange(ed.startDate, ed.endDate)}</span></div>
+            <div class="row-between"><span class="item-title">${esc(ed.degree)}${ed.field ? `, ${esc(ed.field)}` : ""}</span><span class="muted">${dateRange(ed.startDate, ed.endDate, false)}</span></div>
             <div class="muted">${esc(ed.school)}</div>
           </div>`).join("")}
       </div>` : ""}
@@ -192,7 +192,7 @@ function renderMinimal(resume) {
     </div>` : ""}
 
     ${resume.education?.length ? `<div class="section"><div class="section-title">Education</div>
-      ${resume.education.map(ed => `<div class="item row-between"><span>${esc(ed.degree)}, ${esc(ed.school)}</span><span class="muted">${dateRange(ed.startDate, ed.endDate)}</span></div>`).join("")}
+      ${resume.education.map(ed => `<div class="item row-between"><span>${esc(ed.degree)}, ${esc(ed.school)}</span><span class="muted">${dateRange(ed.startDate, ed.endDate, false)}</span></div>`).join("")}
     </div>` : ""}
 
     ${resume.skills?.length ? `<div class="section"><div class="section-title">Skills</div><div>${resume.skills.map(esc).join(", ")}</div></div>` : ""}
@@ -246,7 +246,7 @@ function renderTechnical(resume) {
     </div>` : ""}
 
     ${resume.education?.length ? `<div class="section"><div class="section-title">Education</div>
-      ${resume.education.map(ed => `<div class="item row-between"><span class="item-title">${esc(ed.degree)}, ${esc(ed.school)}</span><span class="muted">${dateRange(ed.startDate, ed.endDate)}</span></div>`).join("")}
+      ${resume.education.map(ed => `<div class="item row-between"><span class="item-title">${esc(ed.degree)}, ${esc(ed.school)}</span><span class="muted">${dateRange(ed.startDate, ed.endDate, false)}</span></div>`).join("")}
     </div>` : ""}
 
     ${resume.certifications?.length ? `<div class="section"><div class="section-title">Certifications</div>

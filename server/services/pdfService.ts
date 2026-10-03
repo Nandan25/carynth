@@ -27,7 +27,7 @@ export async function resumeToPdfBuffer(resume: IResume): Promise<Buffer> {
       printBackground: true,
       preferCSSPageSize: false,
     });
-    return pdfBuffer;
+    return Buffer.from(pdfBuffer);
   } finally {
     await page.close();
   }
