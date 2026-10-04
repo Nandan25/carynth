@@ -83,13 +83,48 @@ PDF export alone. If OCR imports see real usage, plan for at least a
 Starter-tier Render instance rather than the free tier — 512MB tends to be
 tight once both are running concurrently.
 
-## 5. Deploying to Render
-- **Backend**: new Web Service → root directory `server` → build command
-  `npm install && npm run build` (compiles TypeScript to `dist/`) → start command `npm start` → add all env vars from
-  `.env.example` in the Render dashboard.
-- **Frontend**: new Static Site → root directory `client` → build command
-  `npm install && npm run build` → publish directory `dist` → set
-  `VITE_API_URL` to your backend's Render URL.
+## 5. Docker
+
+Both apps ship with a multi-stage Dockerfile (`server/Dockerfile`, `client/Dockerfile`).
+
+```bash
+cp .env.docker.example .env      # fill in JWT_SECRET, ENCRYPTION_KEY, GEMINI_API_KEY
+docker compose up --build        # web: http://localhost:8080  api: http://localhost:5000/api/health
+```
+
+- **Server image**: compiles TypeScript (`pnpm build`), prunes dev dependencies, and runs
+  `node dist/server.js`. Chrome (matching the installed Puppeteer version) and fonts are
+  installed in the image for PDF export and OCR; the build fails if Chrome has missing
+  shared libraries.
+- **Client image**: builds with Vite and serves the bundle from nginx with SPA fallback
+  (deep links like `/editor/123` work). `VITE_API_URL` / `VITE_GOOGLE_CLIENT_ID` are
+  **build-time** values (Vite inlines them), passed as Docker build args.
+
+## 6. Deploying to Render (free tier)
+
+**Backend: Web Service, runtime Docker**
+- Root directory `server` (Dockerfile path `./Dockerfile`, build context `.`), or `./server/Dockerfile`
+  with context `./server` if the root directory is left blank.
+- Health check path `/api/health`.
+- Env vars: see `server/.env.example`. Notes:
+  - `MONGO_URI`: your Atlas URI. In Atlas > Network Access allow `0.0.0.0/0`, since Render's free
+    tier has no fixed outbound IP.
+  - `ENCRYPTION_KEY` must be 64 hex characters (Render's "generate value" is not hex).
+  - `CLIENT_URL` must exactly match the Static Site's origin, with no trailing slash.
+
+**Frontend: Static Site**
+- Root directory `client`, build command `npm install && npm run build`, publish directory `dist`.
+- Env vars: `VITE_API_URL` = `https://<your-api>.onrender.com/api`, optional `VITE_GOOGLE_CLIENT_ID`,
+  and `NODE_VERSION` = `22`. `VITE_*` values are inlined at build time, so redeploy after changing them.
+- Redirects/Rewrites tab: add a **Rewrite** `/*` -> `/index.html`, or refreshing `/editor/123`
+  returns 404.
+
+`render.yaml` encodes all of the above if you prefer a Blueprint. `client/Dockerfile` and
+`docker-compose.yml` are only for running the stack locally (the compose file includes a local
+Mongo; point `MONGO_URI` at Atlas instead if you prefer).
+
+Free web services sleep after ~15 minutes idle (first request can take up to a minute), and 512MB RAM
+is tight for OCR imports (see 4a).
 
 ## Features
 - Email/password auth + Google OAuth, both issuing the same JWT
