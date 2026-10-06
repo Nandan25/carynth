@@ -17,7 +17,7 @@ export default function Navbar() {
     <aside className="flex w-full flex-col border-b border-border bg-white px-3 py-3 dark:border-border-dark dark:bg-surface-dark md:h-screen md:w-60 md:shrink-0 md:border-b-0 md:border-r md:px-4 md:py-5">
       {" "}
       <div className="mb-8 px-2">
-        <span className="font-display text-xl font-semibold">Resumly</span>
+        <span className="font-display text-xl font-semibold">Carynth</span>
       </div>
       <nav className="flex flex-1 flex-row flex-wrap gap-1 md:flex-col md:space-y-1">
         <NavLink
