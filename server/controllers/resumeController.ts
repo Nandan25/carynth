@@ -74,6 +74,8 @@ export async function exportPdf(req: Request, res: Response) {
     });
     res.send(pdfBuffer);
   } catch (err: any) {
-    res.status(500).json({ message: "PDF export failed", error: err.message });
+    const status = err.status >= 400 && err.status < 600 ? err.status : 500;
+    const message = status === 503 ? err.message : "PDF export failed";
+    res.status(status).json({ message, error: err.message });
   }
 }

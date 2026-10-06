@@ -12,7 +12,8 @@ RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
     MONGOMS_DISABLE_POSTINSTALL=1
 
-# Lockfile is optional (it is listed in .gitignore): use it when present.
+# Commit pnpm-lock.yaml: it makes builds reproducible. The fallback below only
+# exists so a build doesn't hard-fail if someone forgot to.
 COPY package.json pnpm-lock.yaml* ./
 RUN if [ -f pnpm-lock.yaml ]; then \
       pnpm install --frozen-lockfile --ignore-scripts; \

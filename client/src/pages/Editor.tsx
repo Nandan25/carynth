@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useResumeStore } from "../store/resumeStore";
+import { useResumeStore, type TemplateId } from "../store/resumeStore";
 import {
   getResume,
   updateResume,
@@ -14,6 +14,9 @@ import EducationForm from "../components/editor/EducationForm";
 import SkillsForm from "../components/editor/SkillsForm";
 import ProjectsForm from "../components/editor/ProjectsForm";
 import AIPanel from "../components/editor/AIPanel";
+
+// How long to wait before retrying a failed autosave.
+const SAVE_RETRY_MS = 4000;
 
 const TABS = [
   { id: "personal", label: "Personal" },
@@ -38,7 +41,7 @@ export default function Editor() {
     resume,
     setResume,
     setTitle,
-    setTemplate: string,
+    setTemplate,
     dirty,
     markSaved,
   } = useResumeStore();
@@ -46,39 +49,97 @@ export default function Editor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const saveTimeout = useRef(null);
+  const [loadError, setLoadError] = useState("");
+  const [reloadTick, setReloadTick] = useState(0);
+  const [saveError, setSaveError] = useState("");
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     let active = true;
     (async () => {
       setLoading(true);
-      const data = await getResume(id);
-      if (active) {
-        setResume(data);
-        setLoading(false);
+      setLoadError("");
+      try {
+        const data = await getResume(id);
+        if (active) {
+          setResume(data);
+          setLoading(false);
+        }
+      } catch (err: any) {
+        // Without this the page sat on "Loading…" forever when the resume
+        // didn't exist (or the request failed).
+        if (active) {
+          const status = err.response?.status;
+          setLoadError(
+            status === 400 || status === 404
+              ? "We couldn't find that resume. It may have been deleted."
+              : "We couldn't load this resume. Check your connection and try again.",
+          );
+          setLoading(false);
+        }
       }
     })();
     return () => {
       active = false;
     };
-  }, [id, setResume]);
+  }, [id, setResume, reloadTick]);
 
-  // Autosave, debounced
+  // Autosave, debounced.
   useEffect(() => {
     if (!dirty || loading) return;
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(async () => {
+    const snapshot = resume;
+    const timer = setTimeout(async () => {
       setSaving(true);
       try {
-        await updateResume(id, resume);
-        markSaved();
+        await updateResume(id, snapshot);
+        setSaveError("");
+        // Only mark clean if nothing changed while the request was in
+        // flight. Otherwise an edit made during the save would be flagged
+        // "saved" without ever being sent (and its pending timer cancelled
+        // by the dirty flag flipping), silently losing that edit.
+        if (useResumeStore.getState().resume === snapshot) markSaved();
+      } catch (err: any) {
+        const status = err.response?.status;
+        // Network trouble, server errors and rate limiting are worth retrying.
+        // A 4xx (e.g. a title the server rejects) will fail identically every
+        // time, so retrying would only hammer the API: report it and wait for
+        // the user's next edit instead.
+        const retryable = !status || status >= 500 || status === 429;
+        if (retryable) {
+          setSaveError("Couldn't save, retrying…");
+          // `resume` hasn't changed, so nothing would re-trigger this effect:
+          // schedule the retry ourselves.
+          setTimeout(() => setRetryTick((t) => t + 1), SAVE_RETRY_MS);
+        } else {
+          setSaveError(`Couldn't save: ${err.response?.data?.message || "the server rejected this change."}`);
+        }
       } finally {
         setSaving(false);
       }
     }, 900);
-    return () => clearTimeout(saveTimeout.current);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resume, dirty, loading, id]);
+  }, [resume, dirty, loading, id, retryTick]);
+
+  // Leaving the editor (navigating away, or switching to another resume)
+  // within the debounce window used to drop the last edits: flush them.
+  useEffect(() => {
+    return () => {
+      const { dirty: pending, resume: latest } = useResumeStore.getState();
+      if (pending && id) updateResume(id, latest).catch(() => {});
+    };
+  }, [id]);
+
+  // Closing the tab with unsaved edits: ask the browser to confirm.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -107,6 +168,30 @@ export default function Editor() {
     navigate(`/editor/${tailored._id}`);
   };
 
+  if (loadError) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 p-10 text-center">
+        <p className="text-sm" role="alert">
+          {loadError}
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-black/5"
+          >
+            Back to dashboard
+          </button>
+          <button
+            onClick={() => setReloadTick((t) => t + 1)}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-light"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="p-10 text-sm text-muted dark:text-muted-dark">
@@ -125,18 +210,23 @@ export default function Editor() {
             onChange={(e) => setTitle(e.target.value)}
             className="w-full min-w-0 max-w-[280px] rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg font-medium outline-none hover:border-border focus:border-accent sm:w-auto"
           />
-          <span className="text-xs text-muted dark:text-muted-dark">
+          <span
+            className={`text-xs ${saveError && !saving ? "text-danger" : "text-muted dark:text-muted-dark"}`}
+            role="status"
+          >
             {saving
               ? "Saving…"
-              : dirty
-                ? "Unsaved changes"
-                : "All changes saved"}
+              : saveError
+                ? saveError
+                : dirty
+                  ? "Unsaved changes"
+                  : "All changes saved"}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={resume.templateId}
-            onChange={(e) => setTemplate(e.target.value)}
+            onChange={(e) => setTemplate(e.target.value as TemplateId)}
             className="rounded-lg border border-border bg-white px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-dark"
           >
             {TEMPLATES.map((t) => (

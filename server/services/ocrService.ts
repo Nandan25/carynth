@@ -3,6 +3,9 @@ import path from "path";
 import { createRequire } from "module";
 import { createWorker } from "tesseract.js";
 import { getBrowser } from "./pdfService.js";
+import { browserJobs } from "./browserJobs.js";
+
+const OCR_TIMEOUT_MS = 120_000;
 
 const require = createRequire(import.meta.url);
 
@@ -48,14 +51,31 @@ export interface OcrOptions {
  * PDF export), then runs tesseract.js over each page. Returns the
  * concatenated recognized text.
  */
-export async function ocrPdfBuffer(buffer: Buffer, { maxPages = 3 }: OcrOptions = {}): Promise<string> {
+async function runOcr(buffer: Buffer, maxPages: number): Promise<string> {
   const pdfjsBuildPath = resolvePdfJsBuild(); // throws a clear, catchable error if unavailable
 
   const browser = await getBrowser();
   const page = await browser.newPage();
   let worker: Awaited<ReturnType<typeof createWorker>> | undefined;
 
+  // Hard stop: closing the page makes any in-flight evaluate() reject, and
+  // terminating the worker stops recognition, so a pathological PDF can't pin
+  // a browser slot and CPU indefinitely.
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    page.close().catch(() => {});
+    worker?.terminate().catch(() => {});
+  }, OCR_TIMEOUT_MS);
+
   try {
+    // pdf.js only needs the inline script + a canvas; block everything else.
+    await page.setRequestInterception(true);
+    page.on("request", (req) => {
+      const url = req.url();
+      if (url.startsWith("data:") || url.startsWith("about:")) req.continue();
+      else req.abort();
+    });
     await page.goto("about:blank");
     const pdfjsSource = fs.readFileSync(pdfjsBuildPath, "utf8");
     await page.addScriptTag({ content: pdfjsSource });
@@ -109,8 +129,21 @@ export async function ocrPdfBuffer(buffer: Buffer, { maxPages = 3 }: OcrOptions 
     }
 
     return fullText.trim();
+  } catch (err: any) {
+    if (timedOut) {
+      const timeout: any = new Error("Reading this PDF took too long. Try a shorter or clearer file.");
+      timeout.status = 504;
+      throw timeout;
+    }
+    throw err;
   } finally {
-    if (worker) await worker.terminate();
-    await page.close();
+    clearTimeout(timer);
+    if (worker) await worker.terminate().catch(() => {});
+    await page.close().catch(() => {});
   }
+}
+
+/** Queued behind the shared browser-job limit so OCR can't starve the server. */
+export function ocrPdfBuffer(buffer: Buffer, { maxPages = 3 }: OcrOptions = {}): Promise<string> {
+  return browserJobs.run(() => runOcr(buffer, maxPages));
 }

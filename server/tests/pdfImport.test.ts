@@ -109,3 +109,107 @@ describe("POST /api/resumes/import", () => {
     expect(blocked.status).toBe(429);
   });
 });
+
+describe("POST /api/resumes/import: upload hardening", () => {
+  const post = (token: string) => request(app).post("/api/resumes/import").set(authHeader(token));
+
+  it("rejects a file that CLAIMS to be a PDF but isn't", async () => {
+    const { token } = await createTestUser();
+    const res = await post(token).attach("resume", Buffer.from("just some plain text, not a pdf"), {
+      filename: "resume.pdf",
+      contentType: "application/pdf",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/valid pdf/i);
+    expect(extractTextFromPdf).not.toHaveBeenCalled();
+  });
+
+  it("accepts a PDF whose header is preceded by a little junk", async () => {
+    const { token } = await createTestUser();
+    const res = await post(token).attach("resume", Buffer.concat([Buffer.from("\n\n  "), fakePdf]), {
+      filename: "resume.pdf",
+      contentType: "application/pdf",
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it("answers 413 for a file over the 8 MB limit", async () => {
+    const { token } = await createTestUser();
+    const tooBig = Buffer.concat([Buffer.from("%PDF-1.4\n"), Buffer.alloc(8 * 1024 * 1024 + 1024)]);
+    const res = await post(token).attach("resume", tooBig, { filename: "big.pdf", contentType: "application/pdf" });
+
+    expect(res.status).toBe(413);
+    expect(res.body.message).toMatch(/too large/i);
+  });
+
+  it("does not spend an AI call on a rejected upload", async () => {
+    const { user, token } = await createTestUser();
+    await post(token).attach("resume", Buffer.from("not a pdf"), { filename: "a.pdf", contentType: "application/pdf" });
+    const fresh = await (await import("../models/User.js")).default.findById(user._id);
+    expect(fresh!.aiUsage.count).toBe(0);
+  });
+});
+
+describe("POST /api/resumes/import: failure modes", () => {
+  const upload = (token: string) => attachPdf(request(app).post("/api/resumes/import").set(authHeader(token)));
+
+  it("returns the server-busy message with a 503 when the browser queue is full", async () => {
+    looksLikeScannedPdf.mockReturnValue(true);
+    ocrPdfBuffer.mockRejectedValue(
+      Object.assign(new Error("The server is busy right now. Please try again in a moment."), { status: 503 })
+    );
+    const { token } = await createTestUser();
+
+    const res = await upload(token);
+
+    expect(res.status).toBe(503);
+    expect(res.body.message).toMatch(/busy/i);
+  });
+
+  it("returns a readable 504 when OCR times out", async () => {
+    looksLikeScannedPdf.mockReturnValue(true);
+    ocrPdfBuffer.mockRejectedValue(
+      Object.assign(new Error("Reading this PDF took too long. Try a shorter or clearer file."), { status: 504 })
+    );
+    const { token } = await createTestUser();
+
+    const res = await upload(token);
+
+    expect(res.status).toBe(504);
+    expect(res.body.message).toMatch(/took too long/i);
+  });
+
+  it("hides internal error details behind a generic message for unexpected failures", async () => {
+    parseResumeFromText.mockRejectedValue(new Error("[GoogleGenerativeAI Error] 503 model overloaded"));
+    const { token } = await createTestUser();
+
+    const res = await upload(token);
+
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Resume import failed");
+  });
+
+  it("refunds the daily AI call when the import fails", async () => {
+    parseResumeFromText.mockRejectedValue(new Error("503"));
+    const { user, token } = await createTestUser();
+    const User = (await import("../models/User.js")).default;
+
+    await upload(token);
+
+    await vi.waitFor(async () => expect((await User.findById(user._id))!.aiUsage.count).toBe(0), {
+      timeout: 2000,
+      interval: 25,
+    });
+  });
+
+  it("caps the text sent to Gemini so a huge PDF can't create a huge prompt", async () => {
+    extractTextFromPdf.mockResolvedValue({ text: "a".repeat(100_000), numPages: 3 });
+    const { token } = await createTestUser();
+
+    await upload(token);
+
+    const sentText = parseResumeFromText.mock.calls[0][1] as string;
+    expect(sentText.length).toBe(40_000);
+  });
+});

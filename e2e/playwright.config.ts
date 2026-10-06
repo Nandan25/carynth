@@ -27,6 +27,9 @@ export default defineConfig({
         {
           command: "npm run dev",
           cwd: "../server",
+          // The suite registers a user per test from one IP; skip the
+          // per-IP auth rate limits for it (never set this in production).
+          env: { ...(process.env as Record<string, string>), DISABLE_RATE_LIMIT: "true" },
           url: "http://localhost:5000/api/health",
           reuseExistingServer: true,
           timeout: 30_000,

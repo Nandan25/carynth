@@ -61,18 +61,35 @@ export async function googleLogin(req: Request, res: Response) {
       return res.status(401).json({ message: "Google sign-in failed: no payload in token" });
     }
 
+    // Only trust an email address Google itself has verified.
+    if (!payload.email || !payload.email_verified) {
+      return res.status(401).json({ message: "Your Google account's email address isn't verified." });
+    }
+    const email = payload.email.toLowerCase();
+
     let user = await User.findOne({ googleId: payload.sub });
     if (!user) {
-      // Link by email if the account already exists, else create a new one
-      user = await User.findOne({ email: payload.email!.toLowerCase() });
-      if (user) {
-        user.googleId = payload.sub;
-        user.avatarUrl = user.avatarUrl || payload.picture;
-        await user.save();
+      const existing = await User.findOne({ email }).select("+password");
+      if (existing) {
+        // Never silently attach a Google identity to an account that already
+        // has a password. Registration doesn't verify email ownership, so that
+        // account may have been created by someone else using the victim's
+        // address ("account pre-hijacking"): linking would hand them a
+        // permanent way back in. Make the person sign in with their password.
+        if (existing.password) {
+          return res.status(409).json({
+            message:
+              "An account with this email already exists. Sign in with your email and password instead.",
+          });
+        }
+        existing.googleId = payload.sub;
+        existing.avatarUrl = existing.avatarUrl || payload.picture;
+        await existing.save();
+        user = existing;
       } else {
         user = await User.create({
-          name: payload.name,
-          email: payload.email,
+          name: payload.name || email,
+          email,
           googleId: payload.sub,
           avatarUrl: payload.picture,
         });

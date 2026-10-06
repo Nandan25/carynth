@@ -4,6 +4,8 @@ import { extractTextFromPdf, looksLikeScannedPdf } from "../services/pdfTextServ
 import { ocrPdfBuffer } from "../services/ocrService.js";
 import { parseResumeFromText } from "../services/geminiService.js";
 
+const MAX_IMPORT_CHARS = 40_000;
+
 export async function importResume(req: Request, res: Response) {
   try {
     if (!req.file) {
@@ -26,7 +28,8 @@ export async function importResume(req: Request, res: Response) {
       }
     }
 
-    const parsed = await parseResumeFromText(req.user!, rawText);
+    // A long PDF would otherwise become a very large (and expensive) prompt.
+    const parsed = await parseResumeFromText(req.user!, rawText.slice(0, MAX_IMPORT_CHARS));
 
     const resume = await Resume.create({
       owner: req.user!._id,
@@ -42,6 +45,9 @@ export async function importResume(req: Request, res: Response) {
 
     res.status(201).json({ resume, usedOcr, usesOwnKey: req.usesOwnKey });
   } catch (err: any) {
-    res.status(500).json({ message: "Resume import failed", error: err.message });
+    const status = err.status >= 400 && err.status < 600 ? err.status : 500;
+    // 503 (busy) / 504 (timeout) carry a message that is safe and useful to show.
+    const message = status === 503 || status === 504 ? err.message : "Resume import failed";
+    res.status(status).json({ message, error: err.message });
   }
 }

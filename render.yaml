@@ -29,7 +29,9 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-1.5-flash
+        value: gemini-3.1-flash-lite   # keep in sync with the default in server/services/geminiService.ts; model ids are retired over time, check ai.google.dev/gemini-api/docs/models
+      - key: BROWSER_CONCURRENCY    # parallel Chromium jobs (PDF export / OCR); keep 1 on the 512 MB free plan
+        value: "1"
       - key: FREE_TIER_DAILY_AI_LIMIT
         value: "10"
       - key: CLIENT_URL             # exact frontend origin, NO trailing slash (CORS compares strings)

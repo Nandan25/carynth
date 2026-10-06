@@ -35,10 +35,17 @@ test.describe("Resume editor", () => {
     await expect(page).toHaveURL(/\/editor\//);
     await page.getByPlaceholder("Jane Doe").fill("Alex Rivera");
 
+    const preview = page.getByTestId("resume-preview");
+    await expect(preview).toHaveAttribute("data-template", "classic");
+
+    // Assert the template ACTUALLY changed, not just that the name is still
+    // on screen (that passed even when switching templates was broken).
     await page.locator("select").selectOption("modern");
+    await expect(preview).toHaveAttribute("data-template", "modern");
     await expect(page.getByText("Alex Rivera")).toBeVisible();
 
     await page.locator("select").selectOption("technical");
+    await expect(preview).toHaveAttribute("data-template", "technical");
     await expect(page.getByText("Alex Rivera")).toBeVisible();
   });
 

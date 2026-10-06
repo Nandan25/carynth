@@ -151,3 +151,24 @@ is tight for OCR imports (see 4a).
 - Server relative imports keep a `.js` extension (e.g. `from "./app.js"`) — that is
   the correct convention for TypeScript + Node ESM and resolves to the `.ts` source.
 - Client relative imports are extensionless (Vite `bundler` resolution).
+
+## CI
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request:
+server typecheck + tests, client typecheck + tests + build, then a Docker build of
+both images. It installs with `--frozen-lockfile`, so **commit `server/pnpm-lock.yaml`
+and `client/pnpm-lock.yaml`** (they are no longer git-ignored) or the job will fail.
+
+## Operational settings
+| Variable | Default | Purpose |
+|---|---|---|
+| `CLIENT_URL` | required in production | Allowed CORS origin(s), comma-separated. The API never falls back to `*`. |
+| `TRUST_PROXY` | `1` in production, else `0` | Reverse-proxy hops in front of the API (Render = 1). Wrong values break per-IP rate limiting or let clients spoof `X-Forwarded-For`. |
+| `BROWSER_CONCURRENCY` | `2` | Parallel Chromium jobs (PDF export + OCR). Use `1` on a 512 MB instance; extra requests queue briefly, then get a 503. |
+| `FREE_TIER_DAILY_AI_LIMIT` | `10` | AI calls per UTC day on the shared key. Failed calls are refunded. |
+| `DISABLE_RATE_LIMIT` | unset | `true` skips the per-IP/per-user rate limits. **Only for the e2e suite** (Playwright sets it for the server it starts). Never in production. |
+
+The server validates its configuration at startup (`server/config/env.ts`) and exits with a single message listing every missing or malformed variable.
+
+Rate limits: 10 failed logins / 15 min per IP, 20 registrations / hour per IP, 20 PDF exports and 10 imports / 10 min per user.
+
+If you run the e2e suite against a server you started yourself (Playwright reuses a running one), start it with `DISABLE_RATE_LIMIT=true`.

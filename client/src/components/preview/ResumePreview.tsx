@@ -15,7 +15,11 @@ export default function ResumePreview({ resume, scale = 0.72 }: { resume: Resume
   const Template = TEMPLATES[resume.templateId] || Classic;
 
   return (
-    <div className="flex justify-center py-6">
+    <div
+      className="flex justify-center py-6"
+      data-testid="resume-preview"
+      data-template={resume.templateId}
+    >
       <div
         className="origin-top shadow-lg ring-1 ring-black/5"
         style={{ transform: `scale(${scale})`, width: 794 }}

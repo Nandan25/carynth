@@ -15,12 +15,13 @@ services:
     environment:
       PORT: "5000"
       NODE_ENV: production
+      TRUST_PROXY: "0"        # the API is exposed directly here (no reverse proxy in front)
       MONGO_URI: mongodb://mongo:27017/resume-builder
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env (64 hex chars)}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite}
       FREE_TIER_DAILY_AI_LIMIT: ${FREE_TIER_DAILY_AI_LIMIT:-10}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

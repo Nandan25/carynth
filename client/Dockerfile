@@ -6,7 +6,8 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
-# Lockfile is optional (it is listed in .gitignore): use it when present.
+# Commit pnpm-lock.yaml: it makes builds reproducible. The fallback below only
+# exists so a build doesn't hard-fail if someone forgot to.
 # --ignore-scripts: skips onnxruntime-node/sharp install scripts, which are irrelevant to the
 # browser bundle (Whisper runs in the user's browser via onnxruntime-web).
 COPY package.json pnpm-lock.yaml* ./
