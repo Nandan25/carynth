@@ -1,7 +1,7 @@
 import "dotenv/config";
 import mongoose from "mongoose";
 import { connectDB } from "./config/db.js";
-import { closeBrowser } from "./services/pdfService.js";
+import { closeBrowser, chromeStatus, CHROME_INSTALL_HINT } from "./services/pdfService.js";
 import { loadEnv } from "./config/env.js";
 import app from "./app.js";
 
@@ -11,6 +11,12 @@ try {
 } catch (err: any) {
   console.error(err.message);
   process.exit(1);
+}
+
+// Not fatal (everything except PDF export/OCR still works), but say so loudly
+// at startup rather than letting the first export discover it.
+if (!chromeStatus().installed) {
+  console.warn(`[config] warning: ${CHROME_INSTALL_HINT}`);
 }
 
 const PORT = process.env.PORT || 5000;

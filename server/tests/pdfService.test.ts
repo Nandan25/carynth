@@ -4,9 +4,10 @@ const launch = vi.hoisted(() => {
   process.env.BROWSER_CONCURRENCY = "2"; // read once, when browserJobs is imported
   return vi.fn();
 });
-vi.mock("puppeteer", () => ({ default: { launch } }));
+const executablePath = vi.hoisted(() => vi.fn());
+vi.mock("puppeteer", () => ({ default: { launch, executablePath } }));
 
-const { resumeToPdfBuffer, closeBrowser, getBrowser } = await import("../services/pdfService.js");
+const { resumeToPdfBuffer, closeBrowser, getBrowser, chromeStatus } = await import("../services/pdfService.js");
 
 const resume: any = {
   templateId: "classic",
@@ -170,5 +171,62 @@ describe("concurrency limit", () => {
     expect(rejected).toHaveLength(1);
     expect(rejected[0].reason.status).toBe(503);
     expect(settled.filter((r) => r.status === "fulfilled")).toHaveLength(12);
+  });
+});
+
+describe("missing Chrome", () => {
+  it("reports a clear 503 (not a raw Puppeteer stack) when Chrome isn't installed", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    launch.mockRejectedValue(new Error("Could not find Chrome (ver. 131.0.6778.204). This can occur if either 1. you did not perform an installation..."));
+
+    const err: any = await resumeToPdfBuffer(resume).catch((e) => e);
+
+    expect(err.status).toBe(503);
+    expect(err.message).toMatch(/Chrome isn't installed/i);
+    expect(err.message).not.toMatch(/ver\. 131/); // internals stay out of the user-facing message
+    errorLog.mockRestore();
+  });
+
+  it("logs the exact command that fixes it", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    launch.mockRejectedValue(new Error("Could not find Chrome (ver. 131)"));
+
+    await resumeToPdfBuffer(resume).catch(() => {});
+
+    expect(errorLog.mock.calls.flat().join("\n")).toMatch(/pnpm exec puppeteer browsers install chrome/);
+    errorLog.mockRestore();
+  });
+
+  it("still passes other launch failures through unchanged", async () => {
+    launch.mockRejectedValue(new Error("Failed to launch the browser process: out of memory"));
+    await expect(resumeToPdfBuffer(resume)).rejects.toThrow(/out of memory/);
+  });
+
+  it("recovers once Chrome gets installed (the failure isn't cached)", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    launch.mockRejectedValueOnce(new Error("Could not find Chrome")).mockResolvedValueOnce(makeBrowser());
+
+    await expect(resumeToPdfBuffer(resume)).rejects.toMatchObject({ status: 503 });
+    await expect(resumeToPdfBuffer(resume)).resolves.toBeInstanceOf(Buffer);
+    errorLog.mockRestore();
+  });
+});
+
+describe("chromeStatus (startup check)", () => {
+  it("is installed when the executable exists on disk", () => {
+    executablePath.mockReturnValue(process.execPath); // any file that definitely exists
+    expect(chromeStatus()).toEqual({ installed: true, path: process.execPath });
+  });
+
+  it("is not installed when the expected path is missing", () => {
+    executablePath.mockReturnValue("/definitely/not/here/chrome");
+    expect(chromeStatus().installed).toBe(false);
+  });
+
+  it("is not installed (and doesn't throw) when Puppeteer can't even resolve a path", () => {
+    executablePath.mockImplementation(() => {
+      throw new Error("unsupported platform");
+    });
+    expect(chromeStatus()).toEqual({ installed: false });
   });
 });

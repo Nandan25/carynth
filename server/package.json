@@ -48,5 +48,12 @@
   },
   "engines": {
     "node": "22.x"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "puppeteer",
+      "esbuild",
+      "mongodb-memory-server"
+    ]
   }
 }
